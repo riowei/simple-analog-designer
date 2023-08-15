@@ -1,0 +1,53 @@
+ipcKillAllProcesses()
+
+(define (contains str substr)
+  (rexMatchp substr str))
+
+procedure( stdoutHandler(ipcId data)
+    let( (result result_str)
+		printf("stdout triggered %s \n" data)
+		   
+        if( bag_server_started > 0 then
+            printf("*INFO* Evaluate: %s\n" data)
+            if( result = errsetstring(data 't) then
+                sprintf(result_str "%A\n" car(result))
+            else
+                sprintf(result_str "%s\n" car(nthelem(5 errset.errset)))
+            )
+            printf("*INFO* Send: %s" result_str)
+            ipcWriteProcess(ipcId sprintf(nil "%d\n" strlen(result_str)))
+            ipcWriteProcess(ipcId result_str)
+            't
+        else
+            if( data == "BAG skill server has started.  Yay!\n" then
+                bag_server_started = 1
+                printf("*INFO* BAG skill server started.\n")
+            else
+                printf("*INFO* Waiting for BAG skill server.  Message: %s\n" data)
+            )
+        )
+    )
+)
+
+procedure( stderrHandler(ipcId data)
+    warn("BAG server process error: %s\n" data)
+    warn("Shutting down BAG server.")
+    ipcKillProcess(ipcId)
+    't
+)
+
+procedure( exitHandler(ipcId exitId)
+    printf("*INFO* BAG server process exited with status: %d\n" exitId)
+    't
+)
+
+procedure( start_bag_server()
+    bag_server_started = 0
+    printf("*INFO* Starting BAG server process.\n")
+    cid = ipcBeginProcess("bash -c '$BAG_PYTHON $BAG_INSTALL_DIR/bag_utility_expansion/zmq_server.py 5555'" "" 'stdoutHandler 'stderrHandler 'exitHandler "")
+    cid
+)
+
+bag_server_started = 0
+
+cid = start_bag_server()
