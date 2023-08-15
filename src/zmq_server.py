@@ -22,7 +22,8 @@ port = args.port
 
 import os
 import sys
-import bag
+from server import SkillServer
+from zmqwrapper import ZMQRouter
 
 def run_skill_server(port):
     """Run the BAG/Virtuoso server."""
@@ -31,8 +32,8 @@ def run_skill_server(port):
     
     try:
         # attempt to open port and start server
-        router = bag.interface.ZMQRouter(port=port)
-        server = bag.interface.SkillServer(router, sys.stdout, sys.stdin, tmpdir=None)
+        router = ZMQRouter(port=port)
+        server = SkillServer(router, sys.stdout, sys.stdin, tmpdir=None)
 
     except Exception as ex:
         error_msg = 'bag server process error:\n%s\n' % str(ex)
