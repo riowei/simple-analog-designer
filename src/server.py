@@ -24,8 +24,6 @@ and will strip the newline before sending result back to client.
 
 import traceback
 
-from .. import io
-
 
 def _object_to_skill_file_helper(py_obj, file_obj):
     """Recursive helper function for object_to_skill_file
@@ -122,7 +120,7 @@ class SkillServer(object):
         self.virt_out = virt_out
 
         # create a directory for all temporary files
-        self.dtmp = io.make_temp_dir('skillTmp', parent_dir=tmpdir)
+        # self.dtmp = io.make_temp_dir('skillTmp', parent_dir=tmpdir)
 
     def run(self):
         """Starts this server.
