@@ -11,7 +11,43 @@ import os
 import yaml
 import zmq
 
-from .. import io
+def write_file(fname, content, append=False, mkdir=True):
+    """Writes the given content to file.
+
+    Parameters
+    ----------
+    fname : string
+        the file name.
+    content : unicode
+        the unicode string to write to file.
+    append : bool
+        True to append instead of overwrite.
+    mkdir : bool
+        If True, will create parent directories if they don't exist.
+    """
+    if mkdir:
+        fname = os.path.abspath(fname)
+        dname = os.path.dirname(fname)
+        os.makedirs(dname, exist_ok=True)
+
+    mode = 'a' if append else 'w'
+    with open(fname, mode) as f:
+        f.write(content)
+
+def to_bytes(my_str):
+    """Convert the given string to raw bytes.
+
+    Parameters
+    ----------
+    my_str : string
+        the string to encode to bytes.
+
+    Returns
+    -------
+    val : bytes
+        raw bytes of the string.
+    """
+    return bytes(my_str.encode(encoding='utf-8', errors='replace'))
 
 
 class ZMQDealer(object):
@@ -34,7 +70,7 @@ class ZMQDealer(object):
         the log file.  None to disable logging.
     """
 
-    def __init__(self, port, pipeline=100, host='localhost', log_file=None):
+    def __init__(self, port, pipeline=100, host='localhost', log_file="zmq.log"):
         """Create a new ZMQDealer object.
         """
         context = zmq.Context.instance()
@@ -61,13 +97,13 @@ class ZMQDealer(object):
     def log_msg(self, msg):
         """Log the given message"""
         if self._log_file is not None:
-            io.write_file(self._log_file, '%s\n' % msg, append=True)
+            write_file(self._log_file, '%s\n' % msg, append=True)
 
     def log_obj(self, msg, obj):
         """Log the given object"""
         if self._log_file is not None:
             obj_str = pprint.pformat(obj)
-            io.write_file(self._log_file, '%s\n%s\n' % (msg, obj_str), append=True)
+            write_file(self._log_file, '%s\n%s\n' % (msg, obj_str), append=True)
 
     def close(self):
         """Close the underlying socket."""
@@ -81,7 +117,7 @@ class ZMQDealer(object):
         obj : any
             the object to send.
         """
-        p = io.to_bytes(yaml.dump(obj))
+        p = to_bytes(yaml.dump(obj))
         z = zlib.compress(p)
         self.log_obj('sending data:', obj)
         self.socket.send(z)
@@ -117,7 +153,7 @@ class ZMQDealer(object):
 
         if events:
             data = self.socket.recv()
-            z = io.fix_string(zlib.decompress(data))
+            z = fix_string(zlib.decompress(data))
             obj = yaml.load(z, Loader=yaml.Loader)
             self.log_obj('received data:', obj)
             return obj
@@ -136,6 +172,28 @@ class ZMQDealer(object):
         data = self.socket.recv()
         self.log_msg('received message:\n%s' % data)
         return data
+
+def fix_string(obj):
+    """Fix the given potential string object to ensure python 2/3 compatibility.
+
+    If the given object is raw bytes, decode it into a string using
+    current encoding and return it.  Otherwise, just return the given object.
+
+    This method is useful for writing python 2/3 compatible code.
+
+    Parameters
+    ----------
+    obj :
+        any python object.
+
+    Returns
+    -------
+    val :
+        the given object, or a decoded string if the given object is bytes.
+    """
+    if isinstance(obj, bytes):
+        obj = obj.decode(encoding='utf-8', errors='replace')
+    return obj
 
 
 class ZMQRouter(object):
@@ -201,13 +259,13 @@ class ZMQRouter(object):
     def log_msg(self, msg):
         """Log the given message"""
         if self._log_file is not None:
-            io.write_file(self._log_file, '%s\n' % msg, append=True)
+            write_file(self._log_file, '%s\n' % msg, append=True)
 
     def log_obj(self, msg, obj):
         """Log the given object"""
         if self._log_file is not None:
             obj_str = pprint.pformat(obj)
-            io.write_file(self._log_file, '%s\n%s\n' % (msg, obj_str), append=True)
+            write_file(self._log_file, '%s\n%s\n' % (msg, obj_str), append=True)
 
     def send_msg(self, msg, addr=None):
         """Sends a string message
@@ -242,7 +300,7 @@ class ZMQRouter(object):
             warn_msg = '*WARNING* No receiver address specified.  Message not sent:'
             self.log_obj(warn_msg, obj)
         else:
-            p = io.to_bytes(yaml.dump(obj))
+            p = to_bytes(yaml.dump(obj))
             z = zlib.compress(p)
             self.log_obj('sending data:', obj)
             self.socket.send_multipart([addr, z])
@@ -272,7 +330,7 @@ class ZMQRouter(object):
         """
         self.addr, data = self.socket.recv_multipart()
 
-        z = io.fix_string(zlib.decompress(data))
+        z = fix_string(zlib.decompress(data))
         obj = yaml.load(z, Loader=yaml.Loader)
         self.log_obj('received data:', obj)
         return obj
